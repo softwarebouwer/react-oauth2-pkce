@@ -9,11 +9,11 @@ function buildUrlEncodedRequest(request: TTokenRequest): string {
   return queryString
 }
 
-export async function postWithXForm(url: string, request: TTokenRequest): Promise<Response> {
+export async function postWithXForm(url: string, request: TTokenRequest, headers?: HeadersInit): Promise<Response> {
   return fetch(url, {
     method: 'POST',
     body: buildUrlEncodedRequest(request),
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', ...headers },
   }).then(async (response: Response) => {
     if (!response.ok) {
       const responseBody = await response.text()
@@ -22,3 +22,4 @@ export async function postWithXForm(url: string, request: TTokenRequest): Promis
     return response
   })
 }
+

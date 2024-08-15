@@ -67,8 +67,8 @@ function isTokenResponse(body: unknown | TTokenResponse): body is TTokenResponse
   return (body as TTokenResponse).access_token !== undefined
 }
 
-function postTokenRequest(tokenEndpoint: string, tokenRequest: TTokenRequest): Promise<TTokenResponse> {
-  return postWithXForm(tokenEndpoint, tokenRequest).then((response) => {
+function postTokenRequest(tokenEndpoint: string, tokenRequest: TTokenRequest, headers?: HeadersInit): Promise<TTokenResponse> {
+  return postWithXForm(tokenEndpoint, tokenRequest, headers).then((response) => {
     return response.json().then((body: TTokenResponse | unknown): TTokenResponse => {
       if (isTokenResponse(body)) {
         return body
@@ -112,8 +112,9 @@ export const fetchTokens = (config: TInternalConfig): Promise<TTokenResponse> =>
 export const fetchWithRefreshToken = (props: {
   config: TInternalConfig
   refreshToken: string
+  token: string
 }): Promise<TTokenResponse> => {
-  const { config, refreshToken } = props
+  const { config, refreshToken, token } = props
   const refreshRequest: TTokenRequestForRefresh = {
     grant_type: 'refresh_token',
     refresh_token: refreshToken,
@@ -122,7 +123,12 @@ export const fetchWithRefreshToken = (props: {
     ...config.extraTokenParameters,
   }
   if (config.refreshWithScope) refreshRequest.scope = config.scope
-  return postTokenRequest(config.tokenEndpoint, refreshRequest)
+
+  let headers: HeadersInit | undefined = undefined;
+  if (config.refreshWithAuthHeader) {
+    headers = { "Authorization": `Bearer ${token}`}
+  }
+  return postTokenRequest(config.tokenEndpoint, refreshRequest, headers)
 }
 
 export function redirectToLogout(

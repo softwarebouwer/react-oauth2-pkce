@@ -81,6 +81,7 @@ export type TAuthConfig = {
   storage?: 'session' | 'local'
   storageKeyPrefix?: string
   refreshWithScope?: boolean
+  refreshWithAuthHeader?: boolean
 }
 
 export type TRefreshTokenExpiredEvent = {
@@ -116,4 +117,5 @@ export type TInternalConfig = {
   storage: 'session' | 'local'
   storageKeyPrefix: string
   refreshWithScope: boolean
+  refreshWithAuthHeader?: boolean
 }

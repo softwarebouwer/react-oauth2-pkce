@@ -159,7 +159,7 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
     // The access_token has expired, and we have a non-expired refresh_token. Use it to refresh access_token.
     if (refreshToken) {
       setRefreshInProgress(true)
-      fetchWithRefreshToken({ config, refreshToken })
+      fetchWithRefreshToken({ config, refreshToken, token })
         .then((result: TTokenResponse) => handleTokenResponse(result))
         .catch((error: unknown) => {
           if (error instanceof FetchError) {
