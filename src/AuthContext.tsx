@@ -167,6 +167,13 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
       fetchWithRefreshToken({ config, refreshToken, token })
         .then((result: TTokenResponse) => handleTokenResponse(result))
         .catch((error: unknown) => {
+            // in case of an error, but the original token has not expired, just return and retry later
+            const decodedToken = decodeJWT(token)
+            const orignalExp = Math.round(Number(decodedToken.exp) - Date.now() / 1000) // number of seconds from now
+            if (epochTimeIsPast(orignalExp)) {
+                return;
+            }
+
           if (error instanceof FetchError) {
             // If the fetch failed with status 400, assume expired refresh token
             if (error.status === 400) {
