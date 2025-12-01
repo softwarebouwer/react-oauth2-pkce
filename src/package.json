@@ -1,6 +1,6 @@
 {
   "name": "react-oauth2-code-pkce",
-  "version": "1.20.1",
+  "version": "1.23.4",
   "description": "Provider agnostic react package for OAuth2 Authorization Code flow with PKCE",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -14,7 +14,7 @@
   },
   "scripts": {
     "test": "ts-jest",
-    "start": "yarn run start"
+    "start": "vite"
   },
   "repository": {
     "type": "git",
@@ -39,5 +39,7 @@
     "url": "https://github.com/soofstad/react-oauth2-pkce/issues"
   },
   "homepage": "https://github.com/soofstad/react-oauth2-pkce#readme",
-  "files": ["dist/"]
+  "files": [
+    "dist/"
+  ]
 }

@@ -8,34 +8,40 @@ function stringIsUnset(value: string | null | undefined) {
 export function createInternalConfig(passedConfig: TAuthConfig): TInternalConfig {
   // Set default values for internal config object
   const {
+    redirectUri = undefined,
     autoLogin = true,
     clearURL = true,
     decodeToken = true,
     scope = undefined,
     preLogin = () => null,
     postLogin = () => null,
+    loginMethod = 'redirect',
     onRefreshTokenExpire = undefined,
     storage = 'local',
     storageKeyPrefix = 'ROCP_',
     refreshWithScope = true,
     refreshTokenExpiryStrategy = 'renewable',
     refreshWithAuthHeader,
+    tokenRequestCredentials = 'same-origin',
   }: TAuthConfig = passedConfig
 
   const config: TInternalConfig = {
     ...passedConfig,
+    redirectUri: redirectUri,
     autoLogin: autoLogin,
     clearURL: clearURL,
     decodeToken: decodeToken,
     scope: scope,
     preLogin: preLogin,
     postLogin: postLogin,
+    loginMethod: loginMethod,
     onRefreshTokenExpire: onRefreshTokenExpire,
     storage: storage,
     storageKeyPrefix: storageKeyPrefix,
     refreshWithScope: refreshWithScope,
     refreshTokenExpiryStrategy: refreshTokenExpiryStrategy,
     refreshWithAuthHeader: refreshWithAuthHeader,
+    tokenRequestCredentials: tokenRequestCredentials,
   }
   validateConfig(config)
   return config
@@ -52,8 +58,6 @@ export function validateConfig(config: TInternalConfig) {
     throw Error(
       "'tokenEndpoint' must be set in the 'AuthConfig' object passed to 'react-oauth2-code-pkce' AuthProvider"
     )
-  if (stringIsUnset(config?.redirectUri))
-    throw Error("'redirectUri' must be set in the 'AuthConfig' object passed to 'react-oauth2-code-pkce' AuthProvider")
   if (!['session', 'local'].includes(config.storage)) throw Error("'storage' must be one of ('session', 'local')")
   if (config?.extraAuthParams)
     console.warn(

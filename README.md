@@ -28,7 +28,7 @@ Long version;
 ## Example
 
 ```tsx
-import { AuthContext, AuthProvider, TAuthConfig, TRefreshTokenExpiredEvent } from "react-oauth2-code-pkce"
+import { useAuthContext, AuthProvider, TAuthConfig, TRefreshTokenExpiredEvent } from "react-oauth2-code-pkce"
 
 const authConfig: TAuthConfig = {
   clientId: 'myClientID',
@@ -40,7 +40,7 @@ const authConfig: TAuthConfig = {
 }
 
 const UserInfo = (): JSX.Element => {
-    const {token, tokenData} = useContext<IAuthContext>(AuthContext)
+    const {token, tokenData} = useAuthContext()
 
     return <>
         <h4>Access Token</h4>
@@ -71,7 +71,7 @@ npm install react-oauth2-code-pkce
 
 ### IAuthContext values
 
-The object that's returned by `useContext(AuthContext)` provides these values;
+The object that's returned by `useAuthContext()` provides these values;
 
 ```typescript
 interface IAuthContext {
@@ -81,7 +81,8 @@ interface IAuthContext {
   tokenData?: TTokenData
   // Function to trigger login. 
   // If you want to use 'state', you might want to set 'clearURL' configuration parameter to 'false'.
-  logIn: (state?: string, additionalParameters?: { [key: string]: string | boolean | number }, method: 'redirect' | 'popup' = 'redirect') => void
+  // Note that most browsers block popups by default. The library will print a warning and fallback to redirect if the popup is blocked
+  logIn: (state?: string, additionalParameters?: { [key: string]: string | boolean | number }, method: TLoginMethod = 'redirect') => void
   // Function to trigger logout from authentication provider. You may provide optional 'state', and 'logout_hint' values.
   // See https://openid.net/specs/openid-connect-rpinitiated-1_0.html#RPLogout for details.
   logOut: (state?: string, logoutHint?: string, additionalParameters?: { [key: string]: string | boolean | number }) => void
@@ -119,7 +120,8 @@ type TAuthConfig = {
   // URL for the token endpoint at the authentication provider
   tokenEndpoint: string  // Required
   // Which URL the auth provider should redirect the user to after successful authentication/login
-  redirectUri: string  // Required
+  // NOTE: Even if it is declared as optional in the RFC, most identity providers will require it to be set
+  redirectUri?: string  // default: undefined
   // Which scopes to request for the auth token
   scope?: string  // default: ''
   // Optional state value. Will often make more sense to provide the state in a call to the 'logIn()' function
@@ -134,6 +136,9 @@ type TAuthConfig = {
   // Optionally provide a callback function to run _after_ the
   // user has been redirected back from the auth server
   postLogin?: () => void  // default: () => null
+  // Which method to use for login. Can be 'redirect', 'replace', or 'popup'
+  // Note that most browsers block popups by default. The library will print a warning and fallback to redirect if the popup is blocked
+  loginMethod: 'redirect' | 'replace' | 'popup'  // default: 'redirect'
   // Optional callback function for the 'refreshTokenExpired' event.
   // You likely want to display a message saying the user need to log in again. A page refresh is enough.
   onRefreshTokenExpire?: (event: TRefreshTokenExpiredEvent) => void  // default: undefined
@@ -148,7 +153,7 @@ type TAuthConfig = {
   // NOTE: Many authentication servers will keep the client logged in by cookies. You should therefore use 
   // the logOut() function to properly log out the client. Or configure your server not to issue cookies.
   storage?: 'local' | 'session'  // default: 'local'
-  // Sets the prefix used when storing login state
+  // Sets the prefix for keys used by this library in storage
   storageKeyPrefix?: string // default: 'ROCP_'
   // Set to false if you need to access the urlParameters sent back from the login server.
   clearURL?: boolean  // default: true
@@ -170,6 +175,11 @@ type TAuthConfig = {
   refreshTokenExpiryStrategy?: 'renewable' | 'absolute' // default: renewable
   // Whether or not to post 'scope' when refreshing the access token
   refreshWithScope?: boolean // default: true
+  // Controls whether browser credentials (cookies, TLS client certificates, or authentication headers containing a username and password) are sent when requesting tokens.
+  // Warning: Including browser credentials deviates from the standard protocol and can introduce unforeseen security issues. Only set this to 'include' if you know what 
+  // you are doing and CSRF protection is present. Setting this to 'include' is required when the token endpoint requires client certificate authentication, but likely is
+  // not needed in any other case. Use with caution.
+  tokenRequestCredentials?: 'same-origin' | 'include' | 'omit' // default: 'same-origin'
 }
 
 ```
@@ -185,9 +195,38 @@ You should configure your IDP (Identity Provider) to send these, but if that is 
 with the config parameters `tokenExpiresIn` and `refreshTokenExpiresIn`.
 
 ### Fails to compile with Next.js
+The library's main componet `AuthProvider` is _client side only_. Meaning it must be rendered in a web browser, and can not be pre-rendered server-side (which is default in newer versions of NextJS and similar frameworks). 
 
-This library expects to have a `localStorage` (or `sessionStorage`) available. That is not the case when compiling Next.js projects serverside.  
-See: https://github.com/soofstad/react-oauth2-pkce/discussions/90 for a solution.
+This can be solved by marking the module with `use client` and importing the component in the client only (`"ssr": false`).
+
+```tsx
+'use client'
+import dynamic from 'next/dynamic'
+import {TAuthConfig, TRefreshTokenExpiredEvent, useAuthContext} from 'react-oauth2-code-pkce'
+
+const AuthProvider = dynamic(
+    ()=> import("react-oauth2-code-pkce")
+        .then((mod) => mod.AuthProvider),
+    {ssr: false}
+)
+
+const authConfig: TAuthConfig = {
+  clientId: 'your-client-id',
+  authorizationEndpoint: 'https://your-auth-server/authorize',
+  tokenEndpoint: 'https://your-auth-server/token',
+  redirectUri: 'http://localhost:3000/',
+  scope: 'openid profile email',
+  onRefreshTokenExpire: (e: TRefreshTokenExpiredEvent) => e.logIn(undefined, undefined, 'popup'),
+}
+
+export default function Authenticated() {
+  return (
+    <AuthProvider authConfig={authConfig}>
+      <LoginInfo/>
+    </AuthProvider>
+  )
+}
+```
 
 ### Error `Bad authorization state...`
 

@@ -1,12 +1,15 @@
+/// <reference types="vite/client" />
+
 // ##########################################
 // NOTE: This file is not part of the package.
 // It's only function is to help development in testing and debugging.
 // If you want to run the project locally you will need to update the authConfig object with your own auth provider
 // ##########################################
 
-import React, { useContext } from 'react'
+import React from 'react'
 import { createRoot } from 'react-dom/client'
-import { AuthContext, AuthProvider } from './AuthContext'
+import { AuthProvider } from './AuthContext'
+import { useAuthContext } from './useAuthContext'
 
 // Get auth provider info from "https://keycloak.ofstad.xyz/realms/master/.well-known/openid-configuration"
 /** @type {import('./types').TAuthConfig} */
@@ -15,11 +18,10 @@ const authConfig = {
   authorizationEndpoint: 'https://keycloak.ofstad.xyz/realms/master/protocol/openid-connect/auth',
   tokenEndpoint: 'https://keycloak.ofstad.xyz/realms/master/protocol/openid-connect/token',
   logoutEndpoint: 'https://keycloak.ofstad.xyz/realms/master/protocol/openid-connect/logout',
-  redirectUri: 'http://localhost:3000/',
+  redirectUri: 'http://localhost:5173/',
   onRefreshTokenExpire: (event) => event.logIn('', {}, 'popup'),
   preLogin: () => console.log('Logging in...'),
   postLogin: () => console.log('Logged in!'),
-  postLogout: () => console.log('Logget out!'),
   decodeToken: true,
   scope: 'profile openid',
   // state: 'testState',
@@ -30,26 +32,26 @@ const authConfig = {
 }
 
 function LoginInfo() {
-  const { tokenData, token, idTokenData, logIn, logOut, error, loginInProgress, idToken } = useContext(AuthContext)
+  const { tokenData, token, idTokenData, logIn, logOut, error, loginInProgress } = useAuthContext()
 
   if (loginInProgress) return null
   return (
     <>
       {error && <div style={{ color: 'red' }}>An error occurred during authentication: {error}</div>}
-      <>
-        <button onClick={() => logIn('', {}, 'popup')}>Log in w/popup</button>
-        <button onClick={() => logIn()}>Log in w/redirect</button>
-        <button onClick={() => logIn('customLoginState')}>Log in w/state</button>
-        <button onClick={() => logIn('customLoginState', { scope: 'profile', something: 123 })}>
-          Log in w/extra params
-        </button>
-      </>
+
+      <button onClick={() => logIn('', {}, 'popup')}>Log in w/popup</button>
+      <button onClick={() => logIn()}>Log in w/redirect</button>
+      <button onClick={() => logIn('customLoginState')}>Log in w/state</button>
+      <button onClick={() => logIn('customLoginState', { scope: 'profile', something: 123 })}>
+        Log in w/extra params
+      </button>
+
       {token ? (
         <>
-          <button onClick={() => logOut('rememberThis', idTokenData.session_state)}>Log out</button>
+          <button onClick={() => logOut('rememberThis', idTokenData?.session_state)}>Log out</button>
           <span style={{ margin: '0 10px' }}>
             Access token will expire at:{' '}
-            {new Date(localStorage.getItem('ROCP_tokenExpire') * 1000).toLocaleTimeString()}
+            {new Date(Number(localStorage.getItem('ROCP_tokenExpire')) * 1000).toLocaleTimeString()}
           </span>
           <div style={{ display: 'flex', flexWrap: 'wrap' }}>
             <div>
@@ -111,6 +113,7 @@ function LoginInfo() {
 }
 
 const container = document.getElementById('root')
+if (!container) throw new Error('No container found')
 const root = createRoot(container)
 
 root.render(

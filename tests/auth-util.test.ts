@@ -10,13 +10,14 @@ const authConfig: TInternalConfig = {
   clientId: 'myClientID',
   authorizationEndpoint: 'myAuthEndpoint',
   tokenEndpoint: 'myTokenEndpoint',
-  redirectUri: 'http://localhost:3000/',
+  redirectUri: 'http://localhost:5173/',
   scope: 'someScope openid',
   clearURL: false,
   storage: 'local',
   refreshTokenExpiryStrategy: 'renewable',
   storageKeyPrefix: 'ROCP_',
   refreshWithScope: true,
+  loginMethod: 'redirect',
   extraAuthParams: {
     prompt: true,
     client_id: 'anotherClientId',
@@ -26,6 +27,7 @@ const authConfig: TInternalConfig = {
     client_id: 'anotherClientId',
     testKey: 'test Value',
   },
+  tokenRequestCredentials: 'same-origin',
 }
 
 test('decode a JWT token', () => {

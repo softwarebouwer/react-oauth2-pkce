@@ -1,7 +1,9 @@
 import { postWithXForm } from './httpUtils'
 import { generateCodeChallenge, generateRandomString } from './pkceUtils'
+import { calculatePopupPosition } from './popupUtils'
 import type {
   TInternalConfig,
+  TLoginMethod,
   TPrimitiveRecord,
   TTokenRequest,
   TTokenRequestForRefresh,
@@ -16,13 +18,16 @@ export async function redirectToLogin(
   config: TInternalConfig,
   customState?: string,
   additionalParameters?: TPrimitiveRecord,
-  method: 'popup' | 'redirect' = 'redirect'
+  method: TLoginMethod = 'redirect'
 ): Promise<void> {
   const storage = config.storage === 'session' ? sessionStorage : localStorage
+  const navigationMethod = method === 'replace' ? 'replace' : 'assign'
 
   // Create and store a random string in storage, used as the 'code_verifier'
   const codeVerifier = generateRandomString(96)
-  storage.setItem(codeVerifierStorageKey, codeVerifier)
+  // Prefix the code verifier key name to prevent multi-application collisions
+  const codeVerifierStorageKeyName = config.storageKeyPrefix + codeVerifierStorageKey
+  storage.setItem(codeVerifierStorageKeyName, codeVerifier)
 
   // Hash and Base64URL encode the code_verifier, used as the 'code_challenge'
   return generateCodeChallenge(codeVerifier).then((codeChallenge) => {
@@ -30,7 +35,6 @@ export async function redirectToLogin(
     const params = new URLSearchParams({
       response_type: 'code',
       client_id: config.clientId,
-      redirect_uri: config.redirectUri,
       code_challenge: codeChallenge,
       code_challenge_method: 'S256',
       ...config.extraAuthParameters,
@@ -39,6 +43,9 @@ export async function redirectToLogin(
 
     if (config.scope !== undefined && !params.has('scope')) {
       params.append('scope', config.scope)
+    }
+    if (config.redirectUri !== undefined && !params.has('redirect_uri')) {
+      params.append('redirect_uri', config.redirectUri)
     }
 
     storage.removeItem(stateStorageKey)
@@ -54,11 +61,16 @@ export async function redirectToLogin(
     if (config?.preLogin) config.preLogin()
 
     if (method === 'popup') {
-      const handle: null | WindowProxy = window.open(loginUrl, 'loginPopup', 'popup width=600 height=600')
+      const { width, height, left, top } = calculatePopupPosition(600, 600)
+      const handle: null | WindowProxy = window.open(
+        loginUrl,
+        'loginPopup',
+        `width=${width},height=${height},top=${top},left=${left}`
+      )
       if (handle) return
       console.warn('Popup blocked. Redirecting to login page. Disable popup blocker to use popup login.')
     }
-    window.location.assign(loginUrl)
+    window.location[navigationMethod](loginUrl)
   })
 }
 
@@ -67,8 +79,13 @@ function isTokenResponse(body: unknown | TTokenResponse): body is TTokenResponse
   return (body as TTokenResponse).access_token !== undefined
 }
 
-function postTokenRequest(tokenEndpoint: string, tokenRequest: TTokenRequest, headers?: HeadersInit): Promise<TTokenResponse> {
-  return postWithXForm(tokenEndpoint, tokenRequest, headers).then((response) => {
+function postTokenRequest(
+  tokenEndpoint: string,
+  tokenRequest: TTokenRequest,
+  credentials: RequestCredentials,
+  headers?: HeadersInit
+): Promise<TTokenResponse> {
+  return postWithXForm({ url: tokenEndpoint, request: tokenRequest, credentials: credentials, headers }).then((response) => {
     return response.json().then((body: TTokenResponse | unknown): TTokenResponse => {
       if (isTokenResponse(body)) {
         return body
@@ -87,7 +104,9 @@ export const fetchTokens = (config: TInternalConfig): Promise<TTokenResponse> =>
   */
   const urlParams = new URLSearchParams(window.location.search)
   const authCode = urlParams.get('code')
-  const codeVerifier = storage.getItem(codeVerifierStorageKey)
+  // Prefix the code verifier key name to prevent multi-application collisions
+  const codeVerifierStorageKeyName = config.storageKeyPrefix + codeVerifierStorageKey
+  const codeVerifier = storage.getItem(codeVerifierStorageKeyName)
 
   if (!authCode) {
     throw Error("Parameter 'code' not found in URL. \nHas authentication taken place?")
@@ -106,7 +125,7 @@ export const fetchTokens = (config: TInternalConfig): Promise<TTokenResponse> =>
     // TODO: Remove in 2.0
     ...config.extraAuthParams,
   }
-  return postTokenRequest(config.tokenEndpoint, tokenRequest)
+  return postTokenRequest(config.tokenEndpoint, tokenRequest, config.tokenRequestCredentials)
 }
 
 export const fetchWithRefreshToken = (props: {
@@ -123,12 +142,16 @@ export const fetchWithRefreshToken = (props: {
     ...config.extraTokenParameters,
   }
   if (config.refreshWithScope) refreshRequest.scope = config.scope
-
-  let headers: HeadersInit | undefined = undefined;
+  let headers: HeadersInit | undefined = undefined
   if (config.refreshWithAuthHeader) {
-    headers = { "Authorization": `Bearer ${token}`}
+    headers = { Authorization: `Bearer ${token}` }
   }
-  return postTokenRequest(config.tokenEndpoint, refreshRequest, headers)
+  return postTokenRequest(
+    config.tokenEndpoint,
+    refreshRequest,
+    config.tokenRequestCredentials,
+    headers
+  )
 }
 
 export function redirectToLogout(
@@ -144,7 +167,6 @@ export function redirectToLogout(
     token: refresh_token || token,
     token_type_hint: refresh_token ? 'refresh_token' : 'access_token',
     client_id: config.clientId,
-    post_logout_redirect_uri: config.logoutRedirect ?? config.redirectUri,
     ui_locales: window.navigator.languages.join(' '),
     ...config.extraLogoutParameters,
     ...additionalParameters,
@@ -152,6 +174,9 @@ export function redirectToLogout(
   if (idToken) params.append('id_token_hint', idToken)
   if (state) params.append('state', state)
   if (logoutHint) params.append('logout_hint', logoutHint)
+  if (config.logoutRedirect) params.append('post_logout_redirect_uri', config.logoutRedirect)
+  if (!config.logoutRedirect && config.redirectUri) params.append('post_logout_redirect_uri', config.redirectUri)
+
   window.location.assign(`${config.logoutEndpoint}?${params.toString()}`)
 }
 
