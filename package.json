@@ -1,11 +1,17 @@
 {
   "name": "package-development",
   "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "src"
+  ],
   "scripts": {
     "start": "vite",
     "build": "vite build",
     "test": "jest --silent",
-    "test:watch": "jest --silent --watch"
+    "test:watch": "jest --silent --watch",
+    "build:pkg": "npm --workspace src run build",
+    "pack:pkg": "npm pack ./src"
   },
   "dependencies": {
     "react": "18.3.1",

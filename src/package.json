@@ -14,7 +14,9 @@
   },
   "scripts": {
     "test": "ts-jest",
-    "start": "vite"
+    "start": "vite",
+    "build": "tsc -p tsconfig.json",
+    "prepare": "npm run build"
   },
   "repository": {
     "type": "git",
