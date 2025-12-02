@@ -170,7 +170,7 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
             // in case of an error, but the original token has not expired, just return and retry later
             const decodedToken = decodeJWT(token)
             const orignalExp = Math.round(Number(decodedToken.exp) - Date.now() / 1000) // number of seconds from now
-            if (epochTimeIsPast(orignalExp)) {
+            if (!epochTimeIsPast(orignalExp)) {
                 return;
             }
 
