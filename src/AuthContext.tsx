@@ -148,7 +148,9 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
   }
 
   function refreshAccessToken(initial = false): void {
+    // we need original token
     if (!token) return
+
     // The token has not expired. Do nothing
     if (!epochTimeIsPast(tokenExpire)) return
 
@@ -156,10 +158,21 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
     if (refreshInProgress && !initial) return
 
     // If no refreshToken, act as if the refreshToken expired (session expired)
-    if (!refreshToken) return handleExpiredRefreshToken(initial)
+    if (!refreshToken) {
+        console.info('no refresh token');
+        return handleExpiredRefreshToken(initial);
+    }
 
-    // The refreshToken has expired
-    if (refreshTokenExpire && epochTimeIsPast(refreshTokenExpire)) return handleExpiredRefreshToken(initial)
+    // in case of an error, but the original token has not expired, just return and retry later
+    const decodedToken = decodeJWT(token)
+    const originalTokenExp = Math.round(Number(decodedToken.exp) - Date.now() / 1000) // number of seconds from now
+    const originalExpired = epochTimeIsPast(originalTokenExp);
+
+    // The refreshToken and token has expired
+    if (refreshTokenExpire && originalExpired && epochTimeIsPast(refreshTokenExpire)) {
+        console.info('both original and refresh tokens have expired');
+        return handleExpiredRefreshToken(initial);
+    }
 
     // The access_token has expired, and we have a non-expired refresh_token. Use it to refresh access_token.
     if (refreshToken) {
@@ -167,12 +180,8 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
       fetchWithRefreshToken({ config, refreshToken, token })
         .then((result: TTokenResponse) => handleTokenResponse(result))
         .catch((error: unknown) => {
-            // in case of an error, but the original token has not expired, just return and retry later
-            const decodedToken = decodeJWT(token)
-            const orignalExp = Math.round(Number(decodedToken.exp) - Date.now() / 1000) // number of seconds from now
-            if (!epochTimeIsPast(orignalExp)) {
-                return;
-            }
+          // in case of an error, but the original token has not expired, just return and retry later
+          if (!originalExpired) return;
 
           if (error instanceof FetchError) {
             // If the fetch failed with status 400, assume expired refresh token
