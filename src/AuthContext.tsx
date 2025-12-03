@@ -165,15 +165,20 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
 
     // in case of an error, but the original token has not expired, just return and retry later
     const decodedToken = decodeJWT(token)
-    const originalTokenExp = Math.round(Number(decodedToken.exp) - Date.now() / 1000) // number of seconds from now
+    const originalTokenExp = decodedToken.exp; // number of seconds from now
     const originalExpired = epochTimeIsPast(originalTokenExp);
 
     // The refreshToken and token has expired
     if (refreshTokenExpire && originalExpired && epochTimeIsPast(refreshTokenExpire)) {
         console.info('both original and refresh tokens have expired');
-        console.info('idTokenData', idTokenData);
-        console.info('accessTokenData', tokenData);
-        console.info('token', token);
+        // console.info('idTokenData', idTokenData);
+        // console.info('accessTokenData', tokenData);
+        // console.info('token', token);
+        // console.info('decodedToken', decodedToken);
+        // console.info('decodedToken.exp', decodedToken.exp);
+        // console.info('originalTokenExp', originalTokenExp);
+        // console.info('originalExpired', originalExpired);
+        // console.info('refreshTokenExpire', refreshTokenExpire);
         return handleExpiredRefreshToken(initial);
     }
 
