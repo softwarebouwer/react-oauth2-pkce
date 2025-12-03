@@ -171,6 +171,9 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
     // The refreshToken and token has expired
     if (refreshTokenExpire && originalExpired && epochTimeIsPast(refreshTokenExpire)) {
         console.info('both original and refresh tokens have expired');
+        console.info('idTokenData', idTokenData);
+        console.info('accessTokenData', tokenData);
+        console.info('token', token);
         return handleExpiredRefreshToken(initial);
     }
 
