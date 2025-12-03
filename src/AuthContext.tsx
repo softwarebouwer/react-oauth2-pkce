@@ -180,6 +180,8 @@ export const AuthProvider = ({ authConfig, children }: IAuthProvider) => {
       fetchWithRefreshToken({ config, refreshToken, token })
         .then((result: TTokenResponse) => handleTokenResponse(result))
         .catch((error: unknown) => {
+          console.error('fetchWithRefreshToken', error);
+
           // in case of an error, but the original token has not expired, just return and retry later
           if (!originalExpired) return;
 
